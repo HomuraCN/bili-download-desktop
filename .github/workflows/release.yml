@@ -3,12 +3,15 @@ name: Wails Build & Release
 on:
   push:
     tags:
-      - 'v*'  # 当推送 v1.0.0, v1.0.1 等标签时触发
+      - 'v*'
 
 jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
+    # ⬇️ 新增：赋予上传文件的权限，防止 403 错误
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout source code
@@ -29,14 +32,21 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Windows Exe
-        # ✅ 修改点：去掉了 -tags native_webview2loader
-        # 只保留 -clean (清理缓存) 和 -platform (指定构建平台)
         run: wails build -clean -platform windows/amd64
+
+      # ⬇️ 新增：打包成 Zip
+      - name: Compress Release
+        run: |
+          # 检查文件是否存在（方便调试）
+          ls build/bin/
+          # 使用 PowerShell 压缩命令
+          Compress-Archive -Path "build/bin/bili-download-desktop.exe" -DestinationPath "bili-download-desktop.zip"
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: build/bin/bili-download-desktop.exe
+          # ⬇️ 修改：这里改成上传 zip 文件
+          files: bili-download-desktop.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
